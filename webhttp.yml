@@ -1,0 +1,76 @@
+---
+- name: install http & wordpress & port init
+  hosts: web
+  tasks:
+
+  - name: dnf install http,tar
+    dnf:
+      name: "{{ item }}"
+      state: present
+    loop:
+      - wget
+      - tar
+      - php
+      - php-cli
+      - php-common
+      - php-gd
+      - php-mysqlnd
+      - php-curl
+      - php-opcache
+
+  - name: httpd install
+    dnf:
+      name: httpd
+      state: present    
+
+  - name: get wordpress 5.7.8
+    get_url:
+      url: https://ko.wordpress.org/wordpress-5.7.8-ko_KR.tar.gz
+      dest: ./
+
+  - name: unarchive wordpress
+    unarchive:
+      src: ./wordpress-5.7.8-ko_KR.tar.gz
+      dest: ./
+      remote_src: yes
+
+  - name: wordpress file copy
+    copy:
+      src: ./wordpress/
+      dest: /var/www/html/
+      remote_src: yes
+
+  - name: http config fix
+    replace:
+      path: /etc/httpd/conf/httpd.conf
+      regexp: DirectoryIndex index.html
+      replace: DirectoryIndex index.php
+
+  - name: wordpress config file create
+    copy:
+      src: /var/www/html/wp-config-sample.php
+      dest: /var/www/html/wp-config.php
+      remote_src: yes
+
+  - name: wordpress config fix
+    replace:
+      path: /var/www/html/wp-config.php
+      regexp: "{{ item.src }}"
+      replace: "{{ item.dest }}"
+    loop:
+      - {src: 'database_name_here', dest: 'wordpress'}
+      - {src: 'username_here', dest: 'root'}
+      - {src: 'password_here', dest: 'It12345!'}
+      - {src: 'localhost', dest: '10.0.0.14'}
+
+  - name: httpd start
+    systemd:
+      name: httpd
+      state: started
+
+  - name: firewall 80/tcp open
+    firewalld:
+      port: 80/tcp
+      state: enabled
+      immediate: yes
+      permanent: yes

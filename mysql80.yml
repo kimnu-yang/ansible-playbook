@@ -1,0 +1,24 @@
+---
+- name: mysql8.0 install to node3
+  hosts: db
+  tasks:
+  
+  - name: dnf install mysql8.0
+    dnf:
+      name: mysql-server
+      state: latest
+
+  - name: mysql8.0 start
+    systemd:
+      name: mysqld
+      state: started
+
+  - name: create user & database
+    shell: mysql -uroot -e "create user 'root'@'%' identified by 'It12345!'; grant all privileges on *.* to 'root'@'%'; create database wordpress;"
+
+  - name: mysql firewall open
+    firewalld:
+      port: 3306/tcp
+      state: enabled
+      immediate: yes
+      permanent: yes

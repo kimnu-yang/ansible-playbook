@@ -1,0 +1,19 @@
+---
+- name: remove mysql8.0 & mysql directory & firewall close
+  hosts: db
+  tasks:
+
+  - name: mysql8.0 remove
+    dnf:
+      name: mysql-server
+      state: absent
+
+  - name: mysql directory delete
+    file:
+      path: /var/lib/mysql
+      state: absent
+
+  - name: mysql firewall close
+    firewalld:
+      port: 3306/tcp
+      state: disabled

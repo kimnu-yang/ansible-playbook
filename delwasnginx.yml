@@ -1,0 +1,34 @@
+---
+- name: remove nginx, wget, tar, php package
+  hosts: was
+  tasks:
+
+  - name: package remove
+    dnf:
+      name:
+        - wget
+        - tar
+        - nginx
+        - php
+        - php-cli
+        - php-common
+        - php-curl
+        - php-gd
+        - php-opcache
+        - php-mysqlnd
+        - php-fpm
+      state: absent
+      autoremove: yes
+
+  - name: directory remove
+    file:
+      path: "{{ item }}"
+      state: absent
+    loop:
+      - /root/wordpress
+      - /root/wordpress-5.7.8-ko-KR.tar.gz
+
+  - name: firewall close
+    firewalld:
+      port: 80/tcp
+      state: disabled

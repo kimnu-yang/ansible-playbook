@@ -1,0 +1,97 @@
+---
+- name: install nginx, wordpress, php, & firewall open
+  hosts: was
+  tasks:
+
+  - name: dnf install nginx, tar, php
+    dnf:
+      name: "{{ item }}"
+      state: present
+    loop:
+      - wget
+      - tar
+      - nginx
+      - php
+      - php-common
+      - php-gd
+      - php-mysqlnd
+      - php-curl
+      - php-opcache
+      - php-fpm
+
+  - name: get wordpress 5.7.8
+    get_url:
+      url: https://ko.wordpress.org/wordpress-5.7.8-ko_KR.tar.gz
+      dest: ./
+
+  - name: unarchive wordpress
+    unarchive:
+      src: ./wordpress-5.7.8-ko_KR.tar.gz
+      dest: ./
+      remote_src: yes
+
+  - name: wordpress file copy
+    copy:
+      src: ./wordpress/
+      dest: /usr/share/nginx/html/
+      remote_src: yes
+
+  - name: wordpress config file create
+    copy:
+      src: /usr/share/nginx/html/wp-config-sample.php
+      dest: /usr/share/nginx/html/wp-config.php
+      remote_src: yes
+
+  - name: www.conf fixed
+    replace:
+      path: /etc/php-fpm.d/www.conf
+      regexp: "{{ item.src }}"
+      replace: "{{ item.dest }}"
+    loop:
+      - { src: 'user = apache', dest: 'user = nginx' }
+      - { src: 'group = apache', dest: 'group = nginx' }
+      - { src: 'listen.owner = nobody', dest: 'listen.owner = nginx' }
+      - { src: 'listen.group = nobody', dest: 'listen.group = nginx' }
+      - { src: 'listen = 127.0.0.1:9000', dest: 'listen = /run/php-fpm/www.sock' }
+
+  - name: nginx.conf fixed
+    blockinfile:
+      path: /etc/nginx/nginx.conf
+      insertbefore: '^(\s+error_page+\s)404 /404.html;'
+      block: |
+        # babo
+                index    index.php;
+                location ~ \.php$ {
+                    try_files $uri =404;
+                    fastcgi_pass unix:/run/php-fpm/www.sock;
+                    fastcgi_index   index.php;
+                    fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+                    include fastcgi_params;
+                }
+
+  - name: wp-config.php fixed
+    replace:
+      path: /usr/share/nginx/html/wp-config.php
+      regexp: "{{ item.src }}"
+      replace: "{{ item.dest }}"
+    loop:
+      - { src: 'database_name_here', dest: 'wordpress' }
+      - { src: 'username_here', dest: 'root' }
+      - { src: 'password_here', dest: 'It12345@' }
+      - { src: 'localhost', dest: '10.0.0.14' }
+
+  - name:
+    systemd:
+      name: "{{ item }}"
+      state: started
+      enabled: yes
+    loop:
+      - php-fpm
+      - nginx
+
+  - name:
+    firewalld:
+      port: 80/tcp
+      state: enabled
+      permanent: yes
+      immediate: yes
